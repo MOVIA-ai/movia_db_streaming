@@ -1,11 +1,13 @@
-from vehicle_model_parser import VehicleModelParser
+from .vehicle_model_parser import VehicleModelParser
 
 class HyundaiIoniqParser(VehicleModelParser):
+    header = '3775'
+
     """HyundaiIoniqParser parser."""
-    def transform_message(self, dict_input):
+    def transform(self, message):
         
         for key in ['can_16bit_value_1', 'can_16bit_value_2', 'can_16bit_value_3', 'can_32bit_value_3', 'can_32bit_value_4']:
-            if key in dict_input:
-                dict_input[key] = dict_input[key] * 0.1
+            if key in message:
+                message[key] = message[key] * 0.1
     
-        return dict_input
+        return message

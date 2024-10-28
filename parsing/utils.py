@@ -2,9 +2,21 @@ from common_utils.postgres_handler import PostgresHandler
 import pandas as pd
 import os
 import importlib
+import inspect
+from parsing.model_parsers.vehicle_model_parser import VehicleModelParser
+import logging
 
 
-def fetch_vehicle_sensor_dict(self):
+SP_DICT_DEFAULT = {'external_powersource_voltage': '13', 'engine_ignition_status': '9'}
+
+GPS_RENAME_DICT = {'position_latitude': 'latitude', 'position_longitude': 'longitude', 'position_altitude': 'altitude', 'position_speed': 'speed',
+    'position_direction': 'direction', 'position_hdop': 'hdop', 'position_satellites':'satellites', 'vehicle_mileage':'vehicle_mileage'}
+
+IDENTIFIER_DICT = {'ident': 'device_hash', 'timestamp': 'event_timestamp',
+'server_timestamp': 'created', 'bq_timestamp': 'updated'}
+
+
+def fetch_vehicle_sensor_dict():
     query = '''SELECT vm.name, dsvm.can_bit_value, dsvm.device_sensor_fk
         FROM vehicle v
         JOIN vehicle_model vm ON v.vehicle_model_fk = vm.id
@@ -53,21 +65,28 @@ def fetch_imei_dict():
 def model_parsers_dict():
     # Directory where the Parser files are located
     parser_dir = 'parsing/model_parsers'
+    parser_module_path = parser_dir.replace('/', '.')
     if not os.path.exists(parser_dir):
         raise FileNotFoundError(f"Directory '{parser_dir}' does not exist!")
     # Initialize the model_parsers dictionary
-    self.model_parsers = {}
+    model_parsers = {}
     # Loop through the files in the directory
     for filename in os.listdir(parser_dir):
         # Check for Python files, ignore __init__.py or non-Python files
         if filename.endswith('.py') and filename != '__init__.py':
             module_name = filename[:-3]  # Remove '.py'
-            module = importlib.import_module(f'{parser_dir}.{module_name}')
-            parser_class = getattr(module, module_name.capitalize())  # Assuming class name follows CamelCase convention
-            self.model_parsers[parser_class.header] = parser_class
+            print(module_name, f'{parser_module_path}.{module_name}')
+            module = importlib.import_module(f'{parser_module_path}.{module_name}')
+            # Iterate over all attributes of the module
+            for name, obj in inspect.getmembers(module):
+                # Check if the object is a class and a subclass of VehicleModelParser
+                if inspect.isclass(obj) and issubclass(obj, VehicleModelParser) and obj is not VehicleModelParser:
+                    # Add the class to the dictionary using its `header` attribute
+                    model_parsers[obj.header] = obj
 
     # Print to confirm dynamic imports
-    print(f"Model parsers loaded: {list(self.model_parsers.keys())}")
+    print(f"Model parsers loaded: {list(model_parsers.keys())}")
+    return model_parsers
 
 
 def rename_and_melt(element, rename_dict, pivot=True, melt_ids={}):
@@ -98,7 +117,7 @@ def rename_and_melt(element, rename_dict, pivot=True, melt_ids={}):
         aux_df = aux_df[renamed]
         return aux_df.to_dict(orient='records')[0]
     
-def decode_schema_str(self, schema):
+def decode_schema_str(schema):
     """Decode schema string to a dictionary with key and type."""
     out_dict = {}
     fields = schema.split(",")
@@ -106,3 +125,29 @@ def decode_schema_str(self, schema):
         key, key_type = field.split(":")
         out_dict[key] = key_type
     return out_dict
+
+
+class CustomFormatter(logging.Formatter):
+
+    gray = "\x1b[38;20m"
+    bold_gray = "\x1b[38;1m"
+    yellow = "\x1b[33;20m"
+    red = "\x1b[31;20m"
+    bold_red = "\x1b[31;1m"
+    reset = "\x1b[0m"
+    format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
+
+    FORMATS = {
+        logging.DEBUG: gray + format + reset,
+        logging.INFO: bold_gray + format + reset,
+        logging.WARNING: yellow + format + reset,
+        logging.ERROR: red + format + reset,
+        logging.CRITICAL: bold_red + format + reset
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
+
+_LOGGER = logging.getLogger(__name__)

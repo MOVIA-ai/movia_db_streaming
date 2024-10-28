@@ -1,9 +1,9 @@
 from .vehicle_model_parser import VehicleModelParser
 
-class MaxusH6490Parser(VehicleModelParser):
-    header = '6426'
-
-    """MaxusH6490Parser parser."""
+class MaxusEV30Parser(VehicleModelParser):
+    header = '6405'
+    
+    """MaxusEV30Parser parser."""
     def transform(self, message):
         
         if 'can_8bit_value_2' in message:

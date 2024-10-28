@@ -1,13 +1,15 @@
-from vehicle_model_parser import VehicleModelParser
+from .vehicle_model_parser import VehicleModelParser
 
 class YutongParser(VehicleModelParser):
-    """YutongParser parser."""
-    def transform_message(self, dict_input):
-        
-        if 'can_8bit_value_1' in dict_input:
-            dict_input['can_8bit_value_1'] = dict_input['can_8bit_value_1'] * 0.4
-        if 'can_32bit_value_1' in dict_input:
-            dict_input['can_32bit_value_1'] = dict_input['can_32bit_value_1'] / 200
+    header = '11304'
     
-        return dict_input
+    """YutongParser parser."""
+    def transform(self, message):
+        
+        if 'can_8bit_value_1' in message:
+            message['can_8bit_value_1'] = message['can_8bit_value_1'] * 0.4
+        if 'can_32bit_value_1' in message:
+            message['can_32bit_value_1'] = message['can_32bit_value_1'] / 200
+    
+        return message
 

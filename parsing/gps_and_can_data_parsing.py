@@ -1,8 +1,10 @@
 import apache_beam as beam
 import json
 import traceback
-from utils import fetch_vehicle_sensor_dict, fetch_imei_dict, model_parsers_dict, rename_and_melt, \
+from apache_beam.io.gcp.pubsub import PubsubMessage
+from .utils import fetch_vehicle_sensor_dict, fetch_imei_dict, model_parsers_dict, rename_and_melt, \
     decode_schema_str
+from parsing.utils import _LOGGER
 
 class GPSAndCANDataParsing(beam.DoFn):
     """ Custom ParallelDo class to apply a custom transformation for GPS and CAN data parsing """
@@ -22,6 +24,7 @@ class GPSAndCANDataParsing(beam.DoFn):
         
         self.load_parsers()
         self.create_vehicle_sensor_dict()
+        self.create_imei_dict()
 
     def create_vehicle_sensor_dict(self):
         """Fetch vehicle sensor dictionary for CAN data parsing."""
