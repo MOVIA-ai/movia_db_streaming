@@ -4,25 +4,17 @@ import logging
 import ast
 import os
 from parsing.gps_and_can_data_parsing import GPSAndCANDataParsing
-from parsing.utils import _LOGGER, CustomFormatter
+from parsing.utils import _LOGGER, CustomFormatter, IDENTIFIER_DICT, SP_DICT_DEFAULT, GPS_RENAME_DICT, \
+    EXTRAS_RENAMING_DICT
 from apache_beam.io.gcp.bigquery import WriteToBigQuery, BigQueryDisposition
 from apache_beam.options.pipeline_options import (PipelineOptions,
                                                   StandardOptions)
-from helper_classes import WriteToFirestore
+from common_utils.helper_classes import WriteToFirestore
 from dotenv import load_dotenv
 
 INPUT_SUBSCRIPTION = "projects/PROJECT_ID/subscriptions/SUBSCRIPTION_NAME"
 BIGQUERY_SCHEMA = "timestamp:TIMESTAMP,attr1:FLOAT,msg:STRING"
 ERROR_TABLE_SCHEMA = "message:STRING"
-
-IDENTIFIER_DICT = {'ident': 'device_hash', 'timestamp': 'event_timestamp',
-'server_timestamp': 'created', 'bq_timestamp': 'updated'}
-
-#DEFAULT DICT
-SP_DICT_DEFAULT = {'external_powersource_voltage': '13', 'engine_ignition_status': '9'}
-
-GPS_RENAME_DICT = {'position_latitude': 'latitude', 'position_longitude': 'longitude', 'position_altitude': 'altitude', 'position_speed': 'speed',
-    'position_direction': 'direction', 'position_hdop': 'hdop', 'position_satellites':'satellites', 'vehicle_mileage':'vehicle_mileage'}
 
 # Helper function to load and set credentials
 def set_google_application_credentials(credentials_file):
@@ -87,7 +79,7 @@ def run():
 
     # Creating pipeline options
     pipeline_options = PipelineOptions(pipeline_args)
-    pipeline_options.view_as(StandardOptions).streaming = True
+    # pipeline_options.view_as(StandardOptions).streaming = True
     runner = pipeline_options.get_all_options()["runner"]
   
     # Defining our pipeline and its steps    
@@ -103,9 +95,11 @@ def run():
                  schema_sp           = declared_args.sp_schema, 
                  schema_gps          = declared_args.gps_schema, 
                  runner              = runner,
+                 device_imei_field   = 'ident',
                  sp_default_dict     = SP_DICT_DEFAULT,
                  gps_input_dict      = GPS_RENAME_DICT,
-                 identifier_dict     = IDENTIFIER_DICT)).with_outputs(
+                 identifier_dict     = IDENTIFIER_DICT,
+                 extras_renaming_dict  = EXTRAS_RENAMING_DICT)).with_outputs(
                    GPSAndCANDataParsing.OUTPUT_GPS_TAG,
                    GPSAndCANDataParsing.OUTPUT_SP_TAG,
                    GPSAndCANDataParsing.OUTPUT_FS_TAG))
@@ -114,7 +108,6 @@ def run():
         gps_rows = parse_output[GPSAndCANDataParsing.OUTPUT_GPS_TAG]
         fs_rows = parse_output[GPSAndCANDataParsing.OUTPUT_FS_TAG]
 
-        
 
         writing_report_sp = \
             (sp_rows | 'FLATMAP' >> beam.FlatMap(lambda elements: elements)

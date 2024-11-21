@@ -9,22 +9,45 @@ import logging
 
 SP_DICT_DEFAULT = {'external_powersource_voltage': '13', 'engine_ignition_status': '9'}
 
-GPS_RENAME_DICT = {'position_latitude': 'latitude', 'position_longitude': 'longitude', 'position_altitude': 'altitude', 'position_speed': 'speed',
-    'position_direction': 'direction', 'position_hdop': 'hdop', 'position_satellites':'satellites', 'vehicle_mileage':'vehicle_mileage'}
+# GPS_RENAME_DICT = {'position_latitude': 'latitude', 'position_longitude': 'longitude', 'position_altitude': 'altitude', 'position_speed': 'speed',
+#     'position_direction': 'direction', 'position_hdop': 'hdop', 'position_satellites':'satellites', 'vehicle_mileage':'vehicle_mileage'}
 
-IDENTIFIER_DICT = {'ident': 'device_hash', 'timestamp': 'event_timestamp',
-'server_timestamp': 'created', 'bq_timestamp': 'updated'}
+# IDENTIFIER_DICT = {'ident': 'device_hash', 'timestamp': 'event_timestamp',
+# 'server_timestamp': 'created', 'bq_timestamp': 'updated'}
 
+
+# Renaming dictionary for GPS-specific fields
+GPS_RENAME_DICT = {
+    'position_latitude': 'latitude',
+    'position_longitude': 'longitude',
+    'position_altitude': 'altitude',
+    'position_speed': 'speed',
+    
+}
+
+# Renaming dictionary for identifier and timestamp fields
+IDENTIFIER_DICT = {
+    'timestamp': 'event_timestamp',
+    'asset_device_fk': 'asset_device_fk',
+    'server_timestamp': 'created',
+    'bq_timestamp': 'updated'
+}
+
+# New dictionary for renaming fields specifically for extras
+EXTRAS_RENAMING_DICT = {
+    'position_hdop': 'hdop',
+    'position_satellites': 'satellites',
+    'position_direction': 'direction',
+}
 
 def fetch_vehicle_sensor_dict():
-    query = '''SELECT vm.name, dsvm.can_bit_value, dsvm.device_sensor_fk
+    query = '''SELECT vm.id, dsvm.can_bit_value, dsvm.device_sensor_fk
         FROM vehicle v
         JOIN vehicle_model vm ON v.vehicle_model_fk = vm.id
-        JOIN asset a ON v.asset_fk = a.id
-        JOIN device d ON v.device_fk = d.id
-        LEFT JOIN inter_asset_device iad ON v.device_fk = iad.device_fk AND v.asset_fk = iad.asset_fk
+        LEFT JOIN inter_asset_device iad ON v.inter_asset_device_fk = iad.id
+        JOIN asset a ON a.id = iad.asset_fk
         LEFT JOIN dict_sensor_vehicle_model dsvm ON vm.id = dsvm.vehicle_model_fk
-        WHERE v.is_active = TRUE AND vm.is_active = TRUE AND a.is_active = TRUE AND d.is_active = TRUE;
+        WHERE v.is_active = TRUE AND vm.is_active = TRUE AND a.is_active = TRUE AND iad.active = TRUE;
         '''
     handler = PostgresHandler()
     df = handler.query_to_df(query)
@@ -32,17 +55,17 @@ def fetch_vehicle_sensor_dict():
     
     # Iterate through each row in the DataFrame
     for _, row in df.iterrows():
-        vehicle_model_name = row['name']  # vehicle_model.name
+        vehicle_model_id = str(row['id'])  # vehicle_model.name
         can_bit_value = row['can_bit_value']  # dict_sensor_vehicle_model.can_bit_value
         device_sensor_fk = row['device_sensor_fk']  # dict_sensor_vehicle_model.device_sensor_fk
-        print(vehicle_model_name, can_bit_value, device_sensor_fk)
+        # print(vehicle_model_id, can_bit_value, device_sensor_fk)
         
-        # Check if the vehicle_model_name is already in the dictionary
-        if vehicle_model_name not in vehicle_dict:
-            vehicle_dict[vehicle_model_name] = {}
+        # Check if the vehicle_model_id is already in the dictionary
+        if vehicle_model_id not in vehicle_dict:
+            vehicle_dict[vehicle_model_id] = {}
         
         # Add can_bit_value and device_sensor_fk to the inner dictionary
-        vehicle_dict[vehicle_model_name][can_bit_value] = device_sensor_fk
+        vehicle_dict[vehicle_model_id][can_bit_value] = device_sensor_fk
     return vehicle_dict
 
 def fetch_imei_dict():

@@ -1,6 +1,6 @@
 python pipeline_flespi.py \
 --streaming \
---input_subscription projects/movia-439221/subscriptions/sensor_gpspoint-flespi-sub_prd \
+--input_subscription projects/vivid-vent-265202/subscriptions/gps_and_sensor_flespi \
 --output_table_sp movia-439221:prd_movia.sp_point \
 --output_table_gps movia-439221:prd_movia.gps_point \
 --output_table_errors movia-439221:prd_movia.bq_insertion_errors \
